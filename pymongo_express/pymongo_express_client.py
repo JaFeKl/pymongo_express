@@ -3,13 +3,12 @@ from typing import List, Optional, Tuple, Union, List
 import bson
 
 from pymongo import MongoClient
+from pymongo.errors import OperationFailure
 from pymongo.database import Database
 from pymongo.collection import Collection
 
-LOGGER = logging.getLogger(__name__)
 
-
-class Client:
+class PymongoExpressClient:
     def __init__(
         self, url: str, username: str, password: str, port: int = 27017, logger=None
     ) -> None:
@@ -184,7 +183,7 @@ class Client:
         if collection is not None:
             query = {}
             for key, value in key_values.items():
-                query = self._get_entries_with_value(key, value, query=query)
+                query = self.query_get_entries_with_value(key, value, query=query)
             results = collection.find(query)
             return [result for result in results]
         else:
@@ -209,16 +208,16 @@ class Client:
     ) -> bool:
         collection = self.get_collection_by_name(collection_name, database_name)
         if collection is None:
-            LOGGER.warning(f"Collection '{collection_name}' not found.")
+            self.logger.warning(f"Collection '{collection_name}' not found.")
             return False
         result = collection.delete_one({"_id": id})
         if result.deleted_count > 0:
-            LOGGER.info(
+            self.logger.info(
                 f"Deleted entry with _id '{id}' from collection '{collection_name}'"
             )
             return True
         else:
-            LOGGER.warning(
+            self.logger.warning(
                 f"No entry found with _id '{id}' in collection '{collection_name}'"
             )
             return False
@@ -240,13 +239,13 @@ class Client:
         """
         collection = self.get_collection_by_name(collection_name, database_name)
         if collection is None:
-            LOGGER.warning(f"Collection '{collection_name}' not found.")
+            self.logger.warning(f"Collection '{collection_name}' not found.")
             return False
         collection.drop()
 
         collection = self.get_collection_by_name(collection_name, database_name)
         if collection:
-            LOGGER.warning(f"Failed to delete collection '{collection_name}'")
+            self.logger.warning(f"Failed to delete collection '{collection_name}'")
             return False
         else:
             LOGGER.info(f"Deleted collection '{collection_name}'")
@@ -266,11 +265,11 @@ class Client:
             {"$set": data},
         )
         if result.modified_count > 0:
-            LOGGER.info(
+            self.logger.info(
                 f"Updated entry with _id '{_id}' in collection '{collection_name}'"
             )
         else:
-            LOGGER.warning(
+            self.logger.warning(
                 f"No update on entry  entry found with _id '{_id}' in collection '{collection_name}'"
             )
 
@@ -332,14 +331,16 @@ class Client:
         """
         collection = self.get_collection_by_name(collectionName, databaseName)
         if collection is None:
-            LOGGER.warning(f"Collection '{collectionName}' not found.")
+            self.logger.warning(f"Collection '{collectionName}' not found.")
             return None
         else:
             result = collection.find_one(sort=[("_id", -1)])
             if result is None:
-                LOGGER.warning(f"No entries found in collection '{collectionName}'.")
+                self.logger.warning(
+                    f"No entries found in collection '{collectionName}'."
+                )
             else:
-                LOGGER.info(
+                self.logger.info(
                     f"Most recent entry in collection '{collectionName}': {result}"
                 )
             return result
@@ -363,6 +364,8 @@ class Client:
         Note:
             The function modifies the `query` dictionary in place by adding or updating the "_id" key.
         """
+        if query is None:
+            query = {}
         object_ids = []
         for id in ids:
             if isinstance(id, str):

@@ -1,12 +1,4 @@
-import logging
-from .client import Client
+from .pymongo_express_client import PymongoExpressClient
 
 
-LOGGER = logging.getLogger(__name__)
 
-
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
-
-LOGGER.addHandler(handler)
-LOGGER.setLevel(logging.WARNING)
