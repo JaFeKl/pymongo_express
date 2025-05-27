@@ -119,15 +119,15 @@ class PymongoExpressClient:
             try:
                 collections = db.list_collection_names()
                 if collectionName in collections:
-                    LOGGER.debug(
+                    self.logger.debug(
                         f"Retrieved collection '{collectionName}' from database '{db.name}'"
                     )
                     return db[collectionName]
             except OperationFailure as e:
-                LOGGER.debug(
+                self.logger.debug(
                     f"Unable to retrieve collection from database '{db.name}': {e}"
                 )
-        LOGGER.warning(
+        self.logger.warning(
             f"Unable to retrieve collection named '{collectionName}' in databases {[db.name for db in dbs]}"
         )
         return None
@@ -248,7 +248,7 @@ class PymongoExpressClient:
             self.logger.warning(f"Failed to delete collection '{collection_name}'")
             return False
         else:
-            LOGGER.info(f"Deleted collection '{collection_name}'")
+            self.logger.info(f"Deleted collection '{collection_name}'")
             return True
 
     def update_entry(
@@ -312,6 +312,41 @@ class PymongoExpressClient:
 
     def get_all_ids_in_collection(self, collection: Collection) -> List[str]:
         return collection.distinct("_id")
+
+    def get_all_entries_in_collection(
+        self, collectionName: str, databaseName: Optional[str] = None
+    ) -> List[dict]:
+        """
+        Retrieve all entries from a specified MongoDB collection.
+
+        Args:
+            collectionName (str): The name of the collection to query.
+            databaseName (Optional[str], optional): The name of the database containing the collection.
+                If not provided, the default database is used.
+
+        Returns:
+            List[dict]: A list of all documents in the collection, or an empty list if the collection
+                does not exist or contains no entries.
+
+        Logs:
+            - A warning if the collection is not found or contains no entries.
+            - An info message with the number of entries retrieved.
+        """
+        collection = self.get_collection_by_name(collectionName, databaseName)
+        if collection is None:
+            self.logger.warning(f"Collection '{collectionName}' not found.")
+            return []
+        else:
+            results = list(collection.find())
+            if not results:
+                self.logger.warning(
+                    f"No entries found in collection '{collectionName}'."
+                )
+            else:
+                self.logger.info(
+                    f"Retrieved {len(results)} entries from collection '{collectionName}'."
+                )
+            return results
 
     def get_most_recent_entry(
         self, collectionName: str, databaseName: Optional[str] = None
